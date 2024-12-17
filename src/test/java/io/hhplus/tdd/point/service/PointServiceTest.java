@@ -102,6 +102,57 @@ class PointServiceTest {
         assertEquals(amount, result.point());
 
         verify(userPointTable).selectById(userId);
+    }
 
+    /**
+     * TODO - 특정 유저의 포인트를 사용하는 기능을 작성해주세요.
+     */
+    @Test
+    void 포인트_사용_시_0원_이하_일시_요청은_실패한다() {
+        long userId = 1L;
+        long amount = 500L;
+        long invalidAmount = -1L;
+
+        UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
+
+        when(userPointTable.selectById(userId)).thenReturn(userPoint);
+
+        Exception exception = assertThrows(IllegalArgumentException.class,
+                () -> pointService.UseUserPoint(userId, invalidAmount));
+
+        assertEquals("사용금액이 0원 이하 일 수 없습니다.", exception.getMessage());
+    }
+
+    @Test
+    void 포인트_사용_시_잔액이_사용금액_보다_작으면_요청은_실패한다() {
+        long userId = 1L;
+        long amount = 500L;
+        long useAmount = 1000L;
+
+        UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
+
+        when(userPointTable.selectById(userId)).thenReturn(userPoint);
+
+        Exception exception = assertThrows(IllegalArgumentException.class,
+                () -> pointService.UseUserPoint(userId, useAmount));
+
+        assertEquals("잔액이 사용금액 보다 작습니다.", exception.getMessage());
+    }
+
+    @Test
+    void 포인트_사용_시_요청은_성공한다() {
+        long userId = 1L;
+        long amount = 1000L;
+        long useAmount = 500L;
+
+        UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
+
+        when(userPointTable.selectById(userId)).thenReturn(userPoint);
+
+        // userPoint.point에서 포인트 사용
+        UserPoint updateUserPoint = pointService.UseUserPoint(userId, useAmount);
+
+        assertNotNull(updateUserPoint);
+        assertEquals(amount - useAmount, updateUserPoint.point());
     }
 }

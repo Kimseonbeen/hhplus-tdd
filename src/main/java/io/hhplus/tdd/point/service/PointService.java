@@ -40,4 +40,13 @@ public class PointService {
 
         return userPoint;
     }
+
+    public UserPoint UseUserPoint(long userId, long amount) {
+
+        UserPoint userPoint = userPointTable.selectById(userId);
+
+        // userPoint.point에서 포인트 사용
+        return userPoint.usePoint(amount);
+
+    }
 }
