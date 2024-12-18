@@ -1,6 +1,9 @@
 package io.hhplus.tdd.point.service;
 
+import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.PointHistory;
+import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -19,6 +23,9 @@ class PointServiceTest {
 
     @Mock
     private UserPointTable userPointTable;
+
+    @Mock
+    private PointHistoryTable pointHistoryTable;
 
     @InjectMocks
     private PointService pointService;
@@ -46,7 +53,11 @@ class PointServiceTest {
     @Test
     void 포인트_충전_시_충전금액은_0원_이하_일시_요청은_실패한다() {
         long userId = 1L;
+        long amount = 100L;
         long invalidAmount = 0L;
+
+        when(userPointTable.selectById(userId))
+                .thenReturn(new UserPoint(userId, amount, System.currentTimeMillis()));
         
         Exception exception = assertThrows(IllegalArgumentException.class,
                 () -> pointService.chargeUserPoint(userId, invalidAmount));
@@ -65,15 +76,15 @@ class PointServiceTest {
         when(userPointTable.selectById(userId)).thenReturn(userPoint);
 
         UserPoint result = pointService.chargeUserPoint(userId, plusAmount);
+
         assertNotNull(result);
         assertEquals(amount + plusAmount, result.point());
 
-        // selectById 메서드가 호출되었는지 검증
         verify(userPointTable).selectById(userId);
+        verify(pointHistoryTable).insert(userId, plusAmount,
+                TransactionType.CHARGE, result.updateMillis());
     }
-    /**
-     * TODO - 특정 유저의 포인트를 조회하는 기능을 작성해주세요.
-     */
+
     @Test
     void 유저가_존재하지_않으면_포인트_조회_요청은_실패한다() {
         long userId = 1L;
@@ -104,9 +115,6 @@ class PointServiceTest {
         verify(userPointTable).selectById(userId);
     }
 
-    /**
-     * TODO - 특정 유저의 포인트를 사용하는 기능을 작성해주세요.
-     */
     @Test
     void 포인트_사용_시_0원_이하_일시_요청은_실패한다() {
         long userId = 1L;
@@ -149,10 +157,48 @@ class PointServiceTest {
 
         when(userPointTable.selectById(userId)).thenReturn(userPoint);
 
-        // userPoint.point에서 포인트 사용
         UserPoint updateUserPoint = pointService.UseUserPoint(userId, useAmount);
 
         assertNotNull(updateUserPoint);
         assertEquals(amount - useAmount, updateUserPoint.point());
+    }
+
+    @Test
+    void 유저가_존재하지_않을_시_포인트_내역_요청은_실패한다() {
+        long userId = 1L;
+
+        when(userPointTable.selectById(userId)).thenReturn(null);
+
+        Exception exception = assertThrows(IllegalArgumentException.class,
+                () -> pointService.getUserPointHistory(userId));
+
+        assertEquals("존재하지 않는 회원입니다.", exception.getMessage());
+    }
+
+    @Test
+    void 유저가_존재하면_포인트_내역_요청은_성공한다() {
+        long userId = 1L;
+        long amount = 1000L;
+        long plusAmount = 500L;
+
+        UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
+
+        List<PointHistory> pointHistories = List.of(
+                new PointHistory(1L, userId, 300L,
+                        TransactionType.CHARGE, System.currentTimeMillis()),
+                new PointHistory(2L, userId, 400L,
+                        TransactionType.CHARGE, System.currentTimeMillis())
+        );
+
+        when(userPointTable.selectById(userId)).thenReturn(userPoint);
+        when(pointHistoryTable.selectAllByUserId(userId)).thenReturn(pointHistories);
+
+        pointService.chargeUserPoint(userId, plusAmount);
+
+        List<PointHistory> resultList = pointService.getUserPointHistory(userId);
+
+        assertEquals(2, resultList.size());
+        assertEquals(resultList.get(0), pointHistories.get(0));
+        assertEquals(resultList.get(1), pointHistories.get(1));
     }
 }
