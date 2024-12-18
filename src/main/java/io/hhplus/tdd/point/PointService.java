@@ -18,10 +18,19 @@ public class PointService {
 
         UserPoint userPoint = userPointTable.selectById(userId);
 
-        UserPoint updateUserPoint = userPoint.chargePoint(amount);
+        if (amount <= 0) {
+            throw new IllegalArgumentException("충전금액은 0원 이하 일 수 없습니다.");
+        }
 
-        pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, updateUserPoint.updateMillis());
-        return updateUserPoint;
+        if (userPoint.point() + amount >= 1_000_000) {
+            throw new IllegalArgumentException("충전 결과값이 1_000_000원을 넘을 수 없습니다.");
+        }
+
+        userPoint = userPointTable.insertOrUpdate(userId, userPoint.point() - amount);
+
+        pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, userPoint.updateMillis());
+
+        return userPoint;
     }
 
     // 특정 유저의 포인트를 조회하는 기능
@@ -38,13 +47,26 @@ public class PointService {
 
     public UserPoint UseUserPoint(long userId, long amount) {
 
+        System.out.println("amount = " + amount);
+
         UserPoint userPoint = userPointTable.selectById(userId);
+        System.out.println("userPoint = " + userPoint);
 
-        UserPoint updateUserPoint = userPoint.usePoint(amount);
+        if (amount <= 0) {
+            throw new IllegalArgumentException("사용금액이 0원 이하 일 수 없습니다.");
+        }
 
-        pointHistoryTable.insert(userId, amount, TransactionType.USE, System.currentTimeMillis());
+        if (userPoint.point() < amount) {
+            throw new IllegalArgumentException("잔액이 사용금액 보다 작습니다.");
+        }
 
-        return updateUserPoint;
+        userPoint = userPointTable.insertOrUpdate(userId, userPoint.point() - amount);
+
+        System.out.println("userPoint = " + userPoint);
+
+        pointHistoryTable.insert(userId, amount, TransactionType.USE, userPoint.updateMillis());
+
+        return userPoint;
     }
 
     public List<PointHistory> getUserPointHistory(long userId) {

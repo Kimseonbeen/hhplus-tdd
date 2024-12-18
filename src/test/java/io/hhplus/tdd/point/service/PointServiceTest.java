@@ -157,6 +157,9 @@ class PointServiceTest {
         UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
 
         when(userPointTable.selectById(userId)).thenReturn(userPoint);
+        when(userPointTable.insertOrUpdate(userId, 500L)).thenReturn(
+                new UserPoint(userId, 500L, System.currentTimeMillis())
+        );
 
         UserPoint updateUserPoint = pointService.UseUserPoint(userId, useAmount);
 
@@ -180,7 +183,6 @@ class PointServiceTest {
     void 유저가_존재하면_포인트_내역_요청은_성공한다() {
         long userId = 1L;
         long amount = 1000L;
-        long plusAmount = 500L;
 
         UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
 
@@ -193,8 +195,6 @@ class PointServiceTest {
 
         when(userPointTable.selectById(userId)).thenReturn(userPoint);
         when(pointHistoryTable.selectAllByUserId(userId)).thenReturn(pointHistories);
-
-        pointService.chargeUserPoint(userId, plusAmount);
 
         List<PointHistory> resultList = pointService.getUserPointHistory(userId);
 
