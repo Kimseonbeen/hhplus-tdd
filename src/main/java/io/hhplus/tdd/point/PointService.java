@@ -26,7 +26,7 @@ public class PointService {
             throw new IllegalArgumentException("충전 결과값이 1_000_000원을 넘을 수 없습니다.");
         }
 
-        userPoint = userPointTable.insertOrUpdate(userId, userPoint.point() - amount);
+        userPoint = userPointTable.insertOrUpdate(userId, userPoint.point() + amount);
 
         pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, userPoint.updateMillis());
 
@@ -36,21 +36,12 @@ public class PointService {
     // 특정 유저의 포인트를 조회하는 기능
     public UserPoint getUserPoint(long userId) {
 
-        UserPoint userPoint = userPointTable.selectById(userId);
-
-        if (userPoint == null) {
-            throw new IllegalArgumentException("존재하지 않는 회원입니다.");
-        }
-
-        return userPoint;
+        return userPointTable.selectById(userId);
     }
 
     public UserPoint UseUserPoint(long userId, long amount) {
 
-        System.out.println("amount = " + amount);
-
         UserPoint userPoint = userPointTable.selectById(userId);
-        System.out.println("userPoint = " + userPoint);
 
         if (amount <= 0) {
             throw new IllegalArgumentException("사용금액이 0원 이하 일 수 없습니다.");
@@ -62,21 +53,20 @@ public class PointService {
 
         userPoint = userPointTable.insertOrUpdate(userId, userPoint.point() - amount);
 
-        System.out.println("userPoint = " + userPoint);
-
         pointHistoryTable.insert(userId, amount, TransactionType.USE, userPoint.updateMillis());
 
         return userPoint;
     }
 
     public List<PointHistory> getUserPointHistory(long userId) {
-        UserPoint userPoint = userPointTable.selectById(userId);
 
-        if (userPoint == null) {
-            throw new IllegalArgumentException("존재하지 않는 회원입니다.");
+        List<PointHistory> histories = pointHistoryTable.selectAllByUserId(userId);
+
+        if (histories.isEmpty()) {
+            throw new IllegalArgumentException("포인트 내역 결과가 없습니다.");
         }
 
-        return pointHistoryTable.selectAllByUserId(userId);
+        return histories;
     }
 
 }
