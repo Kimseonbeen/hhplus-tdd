@@ -3,6 +3,7 @@ package io.hhplus.tdd.point.service;
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
 import io.hhplus.tdd.point.PointHistory;
+import io.hhplus.tdd.point.PointService;
 import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class PointServiceTest {
     void 포인트_충전_시_결과값이_1_000_000원_이상일_경우_요청은_실패한다() {
         long userId = 1L;
         long amount = 0L;
-        long invalidAmount = 1_000_000;
+        long invalidAmount = 1_000_000L;
 
         when(userPointTable.selectById(userId))
                 .thenReturn(new UserPoint(userId, amount, System.currentTimeMillis()));
@@ -119,7 +120,7 @@ class PointServiceTest {
     void 포인트_사용_시_0원_이하_일시_요청은_실패한다() {
         long userId = 1L;
         long amount = 500L;
-        long invalidAmount = -1L;
+        long invalidAmount = 0L;
 
         UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
 
