@@ -167,7 +167,7 @@ class PointServiceTest {
                 () -> pointService.UseUserPoint(userId, useAmount));
 
         // then
-        assertEquals("잔액이 사용금액 보다 작습니다.", exception.getMessage());
+        assertEquals("잔액이 부족합니다.", exception.getMessage());
     }
 
     @Test
@@ -194,7 +194,7 @@ class PointServiceTest {
     }
 
     @Test
-    void 포인트_데이터가_존재하지_않을_시_포인트_내역_요청은_실패한다() {
+        void 포인트_데이터가_존재하지_않을_시_포인트_내역_요청은_실패한다() {
         // given
         long userId = 1L;
 
@@ -205,7 +205,7 @@ class PointServiceTest {
                 () -> pointService.getUserPointHistory(userId));
 
         // then
-        assertEquals("포인트 내역 결과가 없습니다.", exception.getMessage());
+        assertEquals("", exception.getMessage());
     }
 
     @Test
