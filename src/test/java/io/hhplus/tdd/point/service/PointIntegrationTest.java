@@ -15,6 +15,12 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -33,7 +39,6 @@ public class PointIntegrationTest {
     private UserPointTable userPointTable;
 
     @Nested
-    @DirtiesContext
     @DisplayName("포인트 조회 통합 테스트")
     class UserPointTest {
         @Test
@@ -67,7 +72,6 @@ public class PointIntegrationTest {
     }
 
     @Nested
-    @DirtiesContext
     @DisplayName("포인트 충전 통합 테스트")
     class UserChargePointTest {
         @Test
@@ -145,7 +149,6 @@ public class PointIntegrationTest {
     }
 
     @Nested
-    @DirtiesContext
     @DisplayName("포인트 사용 통합 테스트")
     class UserUsePointTest {
         @Test
@@ -223,7 +226,6 @@ public class PointIntegrationTest {
     }
 
     @Nested
-    @DirtiesContext
     @DisplayName("포인트 충전, 사용 내역 통합 테스트")
     class PointHistoryTest {
         @Test
@@ -262,6 +264,114 @@ public class PointIntegrationTest {
                     .andExpect(jsonPath("$[1].userId").value(userId))
                     .andExpect(jsonPath("$[1].amount").value(useAmount))
                     .andExpect(jsonPath("$[1].type").value(TransactionType.USE.toString()));
+        }
+    }
+
+    @Nested
+    @DisplayName("동시성 통합 테스트")
+    class ConcurrentTest {
+        @Test
+        void 여러_스레드에서_포인트_충전_시_정상적으로_처리된다() throws Exception {
+            long userId = 11L;
+            long amount = 10L;
+            int threads = 100;
+
+            // 스레드 풀을 생성
+            // newFixedThreadPool(threads)는 지정된 수(100개)의 스레드를 실행할 수 있는 스레드 풀을 생성
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            // 모두 작업을 마칠 때까지 기다리기 위한 카운트다운 래치를 생성
+            // 각 스레드가 작업을 마칠 떄 마다 latch.countDown()을 호출하여 래치 값을 하나씩 감소
+            CountDownLatch latch = new CountDownLatch(threads);
+
+            // 여러 스레드 실행
+            for (int i = 0; i < threads; i++) {
+                // submit()이 호출될 때마다 새로운 스레드가 풀에서 꺼내어져서 작업을 수행
+                // submit()은 각 작업을 비동기적으로 실행
+                // 즉, for문 내에서 100개의 작업이 순차적으로 submit()으로 스레드 풀에 제출되지만,
+                // 각각의 작업은 독립적인 스레드에서 동시에 실행됌
+                executor.submit(() -> {
+                    try {
+                        pointService.chargeUserPoint(userId, amount);  // charge 호출
+                    } finally {
+                        latch.countDown();  // 작업 완료 후 카운트다운
+                    }
+                });
+            }
+
+            // 모든 스레드가 종료될 때까지 기다림
+            latch.await();
+            executor.shutdown();
+
+            // 결과 검증
+            UserPoint userPoint = pointService.getUserPoint(userId);
+            assertEquals(amount * threads, userPoint.point());
+        }
+
+        @Test
+        void 여러_스레드에서_포인트_사용_시_정상적으로_처리된다() throws Exception {
+            long userId = 12L;
+            long amount = 10L;
+            long currentAmount = 10_000L;
+            int threads = 100;
+
+            userPointTable.insertOrUpdate(userId, currentAmount);
+
+            // 스레드 풀과 카운트다운 래치 초기화
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            CountDownLatch latch = new CountDownLatch(threads);
+
+            // 여러 스레드 실행
+            for (int i = 0; i < threads; i++) {
+                executor.submit(() -> {
+                    try {
+                        pointService.UseUserPoint(userId, amount);
+                    } finally {
+                        latch.countDown();  // 작업 완료 후 카운트다운
+                    }
+                });
+            }
+
+            // 모든 스레드가 종료될 때까지 기다림
+            latch.await();
+            executor.shutdown();
+
+            // 결과 검증
+            UserPoint userPoint = pointService.getUserPoint(userId);
+            assertEquals(currentAmount - (amount * threads), userPoint.point());
+        }
+
+        @Test
+        void 여러_스레드에서_포인트_충전_사용_시_정상적으로_처리된다() throws Exception {
+            long userId = 13L;
+            long amount = 10L;
+            long currentAmount = 500L;
+            int threads = 100;
+
+            userPointTable.insertOrUpdate(userId, currentAmount);
+
+            // 스레드 풀과 카운트다운 래치 초기화
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            CountDownLatch latch = new CountDownLatch(threads);
+
+            // 여러 스레드 실행
+            for (int i = 0; i < threads; i++) {
+                executor.submit(() -> {
+                    try {
+                        pointService.chargeUserPoint(userId, amount);
+                        pointService.UseUserPoint(userId, amount);
+                    } finally {
+                        latch.countDown();  // 작업 완료 후 카운트다운
+                    }
+                });
+            }
+
+            // 모든 스레드가 종료될 때까지 기다림
+            latch.await();
+            executor.shutdown();
+
+            // 결과 검증
+            UserPoint userPoint = pointService.getUserPoint(userId);
+            assertEquals(currentAmount, userPoint.point());
         }
     }
 }
