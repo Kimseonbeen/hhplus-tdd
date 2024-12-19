@@ -37,7 +37,7 @@ public class PointController {
      */
     @GetMapping("{id}/histories")
     public List<PointHistoryResponse> history(
-            @PathVariable long id
+            @PathVariable(name = "id") long id
     ) {
         List<PointHistory> userPointHistory = pointService.getUserPointHistory(id);
 

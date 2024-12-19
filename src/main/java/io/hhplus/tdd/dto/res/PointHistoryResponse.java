@@ -10,7 +10,7 @@ public record PointHistoryResponse(
 ) {
     public static PointHistoryResponse from(PointHistory pointHistory) {
         return new PointHistoryResponse(
-                pointHistory.id(),
+                pointHistory.userId(),
                 pointHistory.amount(),
                 pointHistory.type()
         );
